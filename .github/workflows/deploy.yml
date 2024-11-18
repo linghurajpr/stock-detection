@@ -71,48 +71,61 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.EC2_PRIVATE_KEY }}  # Replace with your private key stored in GitHub Secrets
 
-      # Step 3: Configure AWS CLI
+      # Step 3: Install Docker on EC2 (if not installed already)
+      - name: Install Docker
+        run: |
+          ssh -o StrictHostKeyChecking=no ubuntu@18.224.8.43 << EOF
+            # Update and install Docker if not already installed
+            sudo apt-get update
+            sudo apt-get install -y docker.io
+            sudo systemctl start docker
+            sudo systemctl enable docker
+            sudo usermod -aG docker ubuntu  # Ensure the user can run Docker commands
+          EOF
+
+      # Step 4: Configure AWS CLI on EC2
       - name: Configure AWS CLI
         run: |
-          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws configure set region us-east-2  # Replace with your region
+          ssh -o StrictHostKeyChecking=no ubuntu@18.224.8.43 << EOF
+            aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+            aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            aws configure set region us-east-2  # Replace with your region
+          EOF
 
-      # Step 4: Deploy to EC2 instance
+      # Step 5: Deploy to EC2 instance
       - name: Deploy to EC2 instance
         run: |
-          # Connect to EC2 and perform deployment
           ssh -o StrictHostKeyChecking=no ubuntu@18.224.8.43 << EOF
             # Stop and remove any running container on port 8080
-            CONTAINER_ID=$(docker ps -q -f "ancestor=515966528560.dkr.ecr.us-east-2.amazonaws.com/live-stock:latest")
+            CONTAINER_ID=$(sudo docker ps -q -f "ancestor=515966528560.dkr.ecr.us-east-2.amazonaws.com/live-stock:latest")
             if [ ! -z "$CONTAINER_ID" ]; then
-              docker stop $CONTAINER_ID
-              docker rm $CONTAINER_ID
+              sudo docker stop $CONTAINER_ID
+              sudo docker rm $CONTAINER_ID
             else
               echo "No running container found with live-stock image."
             fi
 
             # Optionally remove old images if needed
-            IMAGE_ID=$(docker images -q 515966528560.dkr.ecr.us-east-2.amazonaws.com/live-stock:latest)
+            IMAGE_ID=$(sudo docker images -q 515966528560.dkr.ecr.us-east-2.amazonaws.com/live-stock:latest)
             if [ ! -z "$IMAGE_ID" ]; then
-              docker rmi $IMAGE_ID
+              sudo docker rmi $IMAGE_ID
             else
               echo "No image found for removal."
             fi
 
             # Login to AWS ECR
-            aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin 515966528560.dkr.ecr.us-east-2.amazonaws.com
+            aws ecr get-login-password --region us-east-2 | sudo docker login --username AWS --password-stdin 515966528560.dkr.ecr.us-east-2.amazonaws.com
             
             # Pull the Docker image from ECR
-            docker pull 515966528560.dkr.ecr.us-east-2.amazonaws.com/live-stock:latest
+            sudo docker pull 515966528560.dkr.ecr.us-east-2.amazonaws.com/live-stock:latest
 
             # Run the Docker container on EC2
-            docker run -d -p 8080:8080 515966528560.dkr.ecr.us-east-2.amazonaws.com/live-stock:latest
+            sudo docker run -d -p 8080:8080 515966528560.dkr.ecr.us-east-2.amazonaws.com/live-stock:latest
           EOF
 
       # Optional: Check the running container logs (for debugging purposes)
       - name: Check Docker container logs
         run: |
           ssh -o StrictHostKeyChecking=no ubuntu@18.224.8.43 << EOF
-            docker ps
+            sudo docker ps
           EOF
