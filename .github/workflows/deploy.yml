@@ -113,6 +113,6 @@ jobs:
       # Optional: Check the running container logs (for debugging purposes)
       - name: Check Docker container logs
         run: |
-          ssh -o StrictHostKeyChecking=no ubuntu@18.191.244.167 << EOF
+          ssh -o StrictHostKeyChecking=no ubuntu@18.224.8.43 << EOF
             docker ps
           EOF
