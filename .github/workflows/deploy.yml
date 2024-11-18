@@ -88,12 +88,16 @@ jobs:
             if [ ! -z "$CONTAINER_ID" ]; then
               docker stop $CONTAINER_ID
               docker rm $CONTAINER_ID
+            else
+              echo "No running container found with live-stock image."
             fi
 
             # Optionally remove old images if needed
             IMAGE_ID=$(docker images -q 515966528560.dkr.ecr.us-east-2.amazonaws.com/live-stock:latest)
             if [ ! -z "$IMAGE_ID" ]; then
               docker rmi $IMAGE_ID
+            else
+              echo "No image found for removal."
             fi
 
             # Login to AWS ECR
